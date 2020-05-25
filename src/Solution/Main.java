@@ -1,5 +1,7 @@
 package Solution;
 
+import java.util.List;
+
 public class Main {
 
     public static void main(String[] args) {
@@ -21,6 +23,10 @@ public class Main {
             for(String then :  ws.thens)
                 System.out.println(then);
         }
-	// write your code here
+        List<String> params = AnnotaionsHelper.getParamsBySentenceII(
+                "the number of students in the classroom is 1378 and the number among them that are standing is 42",
+                "the number of students in the classroom is &students and the number among them that are standing is &standing"
+        );
+        System.out.println(params);
     }
 }
