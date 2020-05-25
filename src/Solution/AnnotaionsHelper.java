@@ -41,7 +41,7 @@ public class AnnotaionsHelper {
         return line.substring(line.indexOf(" ") + 1);
     }
 
-    static private String[] separateByOr(String sentence){
+    static public String[] separateByOr(String sentence){
         return sentence.split(" or ");
     }
 }
