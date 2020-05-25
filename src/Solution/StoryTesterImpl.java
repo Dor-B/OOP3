@@ -2,7 +2,6 @@ package Solution;
 
 import Provided.*;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -10,7 +9,6 @@ import java.lang.reflect.Method;
 import java.util.LinkedList;
 import java.util.List;
 
-import Solution.AnnotaionsHelper;
 import org.junit.ComparisonFailure;
 
 enum annotationType{
@@ -22,17 +20,48 @@ enum annotationType{
 public class StoryTesterImpl implements StoryTester {
     @Override
     public void testOnInheritanceTree(String story, Class<?> testClass) throws Exception {
-        //story parsing here
-
-
+        if(story == null || testClass == null){
+            throw new IllegalArgumentException();
+        }
+        StoryStruct currStoryStruct = new StoryStruct(story);
+        Object instance = testClass.getDeclaredConstructor().newInstance();
+        String line = AnnotaionsHelper.removeFirstWord(currStoryStruct.givenSentence);
+        searchAndInvoke(instance,line,annotationType.GIVEN);
+        boolean noFailsSoFar = true;
+        StoryTestExceptionImpl exp = null;
+        for(WhenThenStruct whenThen:currStoryStruct.whenThenGroups) {
+            Tuple<Integer, StoryTestExceptionImpl> res = testWhenThenOnObject(instance,whenThen,noFailsSoFar);
+            if(noFailsSoFar&&res.first!=0){
+                noFailsSoFar=false;
+                exp=res.second;
+            }
+            if(exp!=null)
+                exp.setNumFail(exp.getNumFail()+res.first);
+        }
+        if(exp!=null)
+            throw exp;
     }
 
     @Override
     public void testOnNestedClasses(String story, Class<?> testClass) throws Exception {
-        //TODO: Implement
+        try{
+            testOnInheritanceTree(story,testClass);
+        }catch (GivenNotFoundException exp){
+            Class<?>[] nested = testClass.getDeclaredClasses();
+            for(Class<?> c:nested){
+                try{
+                    testOnNestedClasses(story,c);
+                    return;
+                }catch (GivenNotFoundException $){
+                    continue;
+                }
+            }
+            throw new GivenNotFoundException();
+        }
+
     }
     public Object copyTestObject(Object testObj) throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException{
-        Object backup = testObj.getClass().newInstance();
+        Object backup = testObj.getClass().getDeclaredConstructor().newInstance();
         for(Field field : testObj.getClass().getFields()){
             field.setAccessible(true);
             Object fieldVal = field.get(testObj);
@@ -40,7 +69,7 @@ public class StoryTesterImpl implements StoryTester {
                 field.set(backup, fieldVal.getClass().getMethod("clone").invoke(fieldVal));
             }else{
                 try{
-                    Constructor copyConstructor = fieldVal.getClass().getConstructor(fieldVal.getClass());
+                    Constructor<?> copyConstructor = fieldVal.getClass().getConstructor(fieldVal.getClass());
                     field.set(backup, copyConstructor.newInstance(fieldVal));
                 }catch (NoSuchMethodException exp){
                     field.set(backup, fieldVal);
@@ -70,6 +99,7 @@ public class StoryTesterImpl implements StoryTester {
         }
         Method method = methodData.first;
         Object[] params = stringParamsToGeneral(methodData.second);
+        method.setAccessible(true);
         try {
             method.invoke(testObj, params);
         }catch (InvocationTargetException ite){
@@ -80,20 +110,19 @@ public class StoryTesterImpl implements StoryTester {
             e.printStackTrace();
         }
     }
-    public void testWhenThenOnObject(Object testObj, WhenThenStruct whenThenStruct) throws WordNotFoundException, StoryTestExceptionImpl {
-        Object backup = null;
+    public Tuple<Integer, StoryTestExceptionImpl> testWhenThenOnObject(Object testObj, WhenThenStruct whenThenStruct, boolean noErrorsSoFar) throws WordNotFoundException {
+        Object backup;
         try{
             backup = copyTestObject(testObj);
         }catch (Exception e){ // should not be here
             e.printStackTrace();
-            return;
+            return new Tuple<Integer,StoryTestExceptionImpl>(0,null);
         }
         for(String whenLine : whenThenStruct.whens){
             whenLine = AnnotaionsHelper.removeFirstWord(whenLine);
             searchAndInvoke(testObj, whenLine, annotationType.WHEN);
         }
         StoryTestExceptionImpl testException = null;
-        boolean noErrorsSoFar = true;
         int numFails = 0;
         for(String thenLine : whenThenStruct.thens){
             String thenLineClean = AnnotaionsHelper.removeFirstWord(thenLine);
@@ -120,12 +149,9 @@ public class StoryTesterImpl implements StoryTester {
                     testException = new StoryTestExceptionImpl(thenLine, storyExpected, storyActual);
                 }
                 numFails++;
-                testException.setNumFail(numFails);
             }
         }
-        if(testException != null){
-            throw testException;
-        }
+        return new Tuple<Integer, StoryTestExceptionImpl>(numFails,testException);
     }
 
     static public class WhenThenStruct {
@@ -170,12 +196,23 @@ public class StoryTesterImpl implements StoryTester {
         }
     }
 
-
-    public Tuple<Method,List<String>> searchAnnotation (Class<?> testClass, String givenString,annotationType type) {
-        if(testClass==null)
-            return null;
+    /*
+    *   recieves the whole line excluding the annotation name
+    *   searches for the correct method given an annotation
+    *   and returns a tuple of the method and a list of parameters.
+    */
+    public Tuple<Method,List<String>> searchAnnotation (Class<?> testClass, String givenString,annotationType type)throws GivenNotFoundException, ThenNotFoundException, WhenNotFoundException {
+        if(testClass==null) {
+            switch (type) {
+                case GIVEN:
+                    throw new GivenNotFoundException();
+                case THEN:
+                    throw new ThenNotFoundException();
+                case WHEN:
+                    throw new WhenNotFoundException();
+            }
+        }
         Method[] methods = testClass.getDeclaredMethods();
-        givenString = AnnotaionsHelper.removeFirstWord(givenString);
         String AnoString = "";
         for (Method method : methods) {
             switch (type) {
