@@ -11,7 +11,8 @@ public class AnnotaionsHelper {
         return str.substring(str.lastIndexOf(" ") + 1);
     }
     /**
-     * Get a list of params matching pattern if sentence matches pattern (otherwise empty list)
+     * Get a list of params matching pattern (without "or", "Given", "Then", "When")
+     * if sentence matches pattern (otherwise empty list)
      * @param filledSentence e.g "a classroom with a capacity of 75 and size of large"
      * @param pattern e.g "a classroom with a capacity of &capacity and size of &size"
      * @return list of parameters (in this example ["75", "large"]) or an empty list if
@@ -34,5 +35,13 @@ public class AnnotaionsHelper {
             res.add(paramFilled);
         }
         return res;
+    }
+
+    static public String removeFirstWord(String line){
+        return line.substring(line.indexOf(" ") + 1);
+    }
+
+    static private String[] separateByOr(String sentence){
+        return sentence.split(" or ");
     }
 }
