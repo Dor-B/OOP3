@@ -18,13 +18,16 @@ enum annotationType{
 }
 
 public class StoryTesterImpl implements StoryTester {
+
     @Override
     public void testOnInheritanceTree(String story, Class<?> testClass) throws Exception {
         if(story == null || testClass == null){
             throw new IllegalArgumentException();
         }
         StoryStruct currStoryStruct = new StoryStruct(story);
-        Object instance = testClass.getDeclaredConstructor().newInstance();
+        Constructor<?>[] ctors = testClass.getConstructors();
+        ctors[0].setAccessible(true);
+        Object instance = ctors[0].newInstance();
         String line = AnnotaionsHelper.removeFirstWord(currStoryStruct.givenSentence);
         searchAndInvoke(instance,line,annotationType.GIVEN);
         boolean noFailsSoFar = true;
@@ -61,15 +64,21 @@ public class StoryTesterImpl implements StoryTester {
 
     }
     public Object copyTestObject(Object testObj) throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException{
-        Object backup = testObj.getClass().getDeclaredConstructor().newInstance();
+        Constructor<?> backupCtor = testObj.getClass().getDeclaredConstructor();
+        backupCtor.setAccessible(true);
+        Object backup = backupCtor.newInstance();
+
         for(Field field : testObj.getClass().getFields()){
             field.setAccessible(true);
             Object fieldVal = field.get(testObj);
             if(fieldVal instanceof Cloneable){
-                field.set(backup, fieldVal.getClass().getMethod("clone").invoke(fieldVal));
+                Method cloneMethod = fieldVal.getClass().getMethod("clone");
+                cloneMethod.setAccessible(true);
+                field.set(backup, cloneMethod.invoke(fieldVal));
             }else{
                 try{
                     Constructor<?> copyConstructor = fieldVal.getClass().getConstructor(fieldVal.getClass());
+                    copyConstructor.setAccessible(true);
                     field.set(backup, copyConstructor.newInstance(fieldVal));
                 }catch (NoSuchMethodException exp){
                     field.set(backup, fieldVal);
@@ -86,7 +95,7 @@ public class StoryTesterImpl implements StoryTester {
                         Integer.parseInt((String) o) : o).toArray();
     }
     public void searchAndInvoke(Object testObj, String lineWithoutBeginning, annotationType annoType) throws WordNotFoundException {
-        Tuple<Method, List<String>> methodData = searchAnnotation(testObj.getClass(), lineWithoutBeginning, annotationType.WHEN);
+        Tuple<Method, List<String>> methodData = searchAnnotation(testObj.getClass(), lineWithoutBeginning, annoType);
         if(methodData == null){
             switch (annoType){
                 case THEN:
@@ -213,7 +222,7 @@ public class StoryTesterImpl implements StoryTester {
             }
         }
         Method[] methods = testClass.getDeclaredMethods();
-        String AnoString = "";
+        String AnoString = null;
         for (Method method : methods) {
             switch (type) {
                 case GIVEN:
@@ -232,9 +241,11 @@ public class StoryTesterImpl implements StoryTester {
                         AnoString = currAno3.value();
                     break;
             }
-            List<String> params = AnnotaionsHelper.getParamsBySentenceII(givenString, AnoString);
-            if (!params.isEmpty()) {
-                return new Tuple<>(method, params);
+            if(AnoString!=null) {
+                List<String> params = AnnotaionsHelper.getParamsBySentenceII(givenString, AnoString);
+                if (!params.isEmpty()) {
+                    return new Tuple<>(method, params);
+                }
             }
         }
         return searchAnnotation(testClass.getSuperclass(),givenString,type);
