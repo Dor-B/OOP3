@@ -28,7 +28,8 @@ public class StoryTesterImpl implements StoryTester {
         boolean noFailsSoFar = true;
         StoryTestExceptionImpl exp = null;
         for(WhenThenStruct whenThen:currStoryStruct.whenThenGroups) {
-            Tuple<Integer, StoryTestExceptionImpl> res = testWhenThenOnObject(instance,whenThen,noFailsSoFar);
+            Tuple3<Integer, StoryTestExceptionImpl,Object> res = testWhenThenOnObject(instance,whenThen,noFailsSoFar);
+            instance = res.third;
             if(noFailsSoFar&&res.first!=0){
                 noFailsSoFar=false;
                 exp=res.second;
@@ -58,10 +59,10 @@ public class StoryTesterImpl implements StoryTester {
         }
 
     }
-    public Object copyTestObject(Object testObj) throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException{
+    public Object copyTestObject(Object testObj) throws IllegalAccessException, NoSuchMethodException, InvocationTargetException{
         Object backup = getInstance(testObj.getClass());
 
-        for(Field field : testObj.getClass().getFields()){
+        for(Field field : testObj.getClass().getDeclaredFields()){
             field.setAccessible(true);
             Object fieldVal = field.get(testObj);
             if(fieldVal instanceof Cloneable){
@@ -70,10 +71,10 @@ public class StoryTesterImpl implements StoryTester {
                 field.set(backup, cloneMethod.invoke(fieldVal));
             }else{
                 try{
-                    Constructor<?> copyConstructor = fieldVal.getClass().getConstructor(fieldVal.getClass());
+                    Constructor<?> copyConstructor = fieldVal.getClass().getDeclaredConstructor(fieldVal.getClass());
                     copyConstructor.setAccessible(true);
                     field.set(backup, copyConstructor.newInstance(fieldVal));
-                }catch (NoSuchMethodException exp){
+                }catch (Exception exp){
                     field.set(backup, fieldVal);
                 }
             }
@@ -112,13 +113,13 @@ public class StoryTesterImpl implements StoryTester {
             e.printStackTrace();
         }
     }
-    public Tuple<Integer, StoryTestExceptionImpl> testWhenThenOnObject(Object testObj, WhenThenStruct whenThenStruct, boolean noErrorsSoFar) throws WordNotFoundException {
+    public Tuple3<Integer, StoryTestExceptionImpl, Object> testWhenThenOnObject(Object testObj, WhenThenStruct whenThenStruct, boolean noErrorsSoFar) throws WordNotFoundException {
         Object backup;
         try{
             backup = copyTestObject(testObj);
         }catch (Exception e){ // should not be here
             e.printStackTrace();
-            return new Tuple<Integer,StoryTestExceptionImpl>(0,null);
+            return new Tuple3<Integer,StoryTestExceptionImpl,Object>(0,null,null);
         }
         for(String whenLine : whenThenStruct.whens){
             whenLine = AnnotaionsHelper.removeFirstWord(whenLine);
@@ -138,7 +139,6 @@ public class StoryTesterImpl implements StoryTester {
                     foundGood = true;
                     break;
                 }catch (ComparisonFailure cmpFailErr){
-                    testObj = backup;
                     if(noErrorsSoFar){
                         storyExpected.add(cmpFailErr.getExpected());
                         storyActual.add(cmpFailErr.getActual());
@@ -146,6 +146,7 @@ public class StoryTesterImpl implements StoryTester {
                 }
             }
             if(!foundGood){ // all
+                testObj = backup;
                 if(noErrorsSoFar){ // this is the first then to fail
                     noErrorsSoFar = false;
                     testException = new StoryTestExceptionImpl(thenLine, storyExpected, storyActual);
@@ -153,7 +154,7 @@ public class StoryTesterImpl implements StoryTester {
                 numFails++;
             }
         }
-        return new Tuple<Integer, StoryTestExceptionImpl>(numFails,testException);
+        return new Tuple3<Integer, StoryTestExceptionImpl, Object>(numFails,testException,testObj);
     }
 
     static public class WhenThenStruct {
@@ -269,6 +270,17 @@ public class StoryTesterImpl implements StoryTester {
         public Tuple(X first, Y second) {
             this.first = first;
             this.second = second;
+        }
+    }
+
+    static public class Tuple3<X, Y, Z> {
+        public final X first;
+        public final Y second;
+        public final Z third;
+        public Tuple3(X first, Y second ,Z third) {
+            this.first = first;
+            this.second = second;
+            this.third = third;
         }
     }
 
