@@ -41,11 +41,16 @@ public class StoryTesterImpl implements StoryTester {
             throw exp;
     }
 
+    /**
+     * @param story- the story to test on the class
+     * @param testClass- the calss on which the testing will commence
+     * @return nothing, if there was a failure throws an exception
+     */
     @Override
     public void testOnNestedClasses(String story, Class<?> testClass) throws Exception {
         try{
             testOnInheritanceTree(story,testClass);
-        }catch (GivenNotFoundException exp){
+        }catch (GivenNotFoundException exp){//if given sentence was not found in the given in the class serches in her nested classes
             Class<?>[] nested = testClass.getDeclaredClasses();
             for(Class<?> c:nested){
                 try{
@@ -248,7 +253,7 @@ public class StoryTesterImpl implements StoryTester {
         }
     }
 
-    /*
+    /**
     *   recieves the whole line excluding the annotation name
     *   searches for the correct method given an annotation
     *   and returns a tuple of the method and a list of parameters.
@@ -299,7 +304,7 @@ public class StoryTesterImpl implements StoryTester {
         return searchAnnotation(testClass.getSuperclass(),givenString,type);
     }
 
-    /*
+    /**
     *   the function returns an instance of the given class
     *   even if the class is static or the constructor is private
     */
