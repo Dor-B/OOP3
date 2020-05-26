@@ -205,6 +205,7 @@ public class StoryTesterImpl implements StoryTester {
     *   and returns a tuple of the method and a list of parameters.
     */
     public Tuple<Method,List<String>> searchAnnotation (Class<?> testClass, String givenString,annotationType type)throws GivenNotFoundException, ThenNotFoundException, WhenNotFoundException {
+        //when gets to the end of the recursion throws the appropriate exception
         if(testClass==null) {
             switch (type) {
                 case GIVEN:
@@ -217,6 +218,7 @@ public class StoryTesterImpl implements StoryTester {
         }
         Method[] methods = testClass.getDeclaredMethods();
         String AnoString = null;
+        //checks all the methods to find the one fitting the annotation
         for (Method method : methods) {
             switch (type) {
                 case GIVEN:
@@ -235,6 +237,7 @@ public class StoryTesterImpl implements StoryTester {
                         AnoString = currAno3.value();
                     break;
             }
+            //if an appropriate method was found returns a tuple which includes the method and it parameters
             if(AnoString!=null) {
                 List<String> params = AnnotaionsHelper.getParamsBySentenceII(givenString, AnoString);
                 if (!params.isEmpty()) {
@@ -242,28 +245,37 @@ public class StoryTesterImpl implements StoryTester {
                 }
             }
         }
+        // if an appropriate method was no found,
+        // the function searches for the method in the superclass of the given class
         return searchAnnotation(testClass.getSuperclass(),givenString,type);
     }
 
+    /*
+    *   the function returns an instance of the given class
+    *   even if the class is static or the constructor is private
+    */
     public Object getInstance(Class<?> clazz){
         Object instance=null;
         Constructor<?> ctor= null;
         try {
+            // checks if the class is static if so find the appropriate constructor
+            // which gets an instance of the class
             if (clazz.isMemberClass() && !Modifier.isStatic(clazz.getModifiers())) {
                 ctor = clazz.getDeclaredConstructor(clazz.getDeclaringClass());
                 ctor.setAccessible(true);
                 instance = ctor.newInstance(getInstance(clazz.getDeclaringClass()));
-            } else {
+            } else {//if the class is not static finds the parameter-less constructor
                 ctor = clazz.getDeclaredConstructor();
                 ctor.setAccessible(true);
                 instance = ctor.newInstance();
             }
-        } catch(Exception e){
+        } catch(Exception e){//should not get here
             e.printStackTrace();
         }
         return instance;
     }
 
+    //tuple like calss of 2 objects
     static public class Tuple<X, Y> {
         public final X first;
         public final Y second;
@@ -273,6 +285,7 @@ public class StoryTesterImpl implements StoryTester {
         }
     }
 
+    //tuple like calss of 3 objects
     static public class Tuple3<X, Y, Z> {
         public final X first;
         public final Y second;
