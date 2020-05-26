@@ -157,18 +157,23 @@ public class StoryTesterImpl implements StoryTester {
             e.printStackTrace();
             return new Tuple3<Integer,StoryTestExceptionImpl,Object>(0,null,null);
         }
+        // iterate over the whens
         for(String whenLine : whenThenStruct.whens){
             whenLine = AnnotaionsHelper.removeFirstWord(whenLine);
             searchAndInvoke(testObj, whenLine, annotationType.WHEN);
         }
         StoryTestExceptionImpl testException = null;
         int numFails = 0;
+        // iterate over the thens
         for(String thenLine : whenThenStruct.thens){
             String thenLineClean = AnnotaionsHelper.removeFirstWord(thenLine);
             String[] orSeparated = AnnotaionsHelper.separateByOr(thenLineClean);
+            // lists to store the fails actual vs expected
             List<String> storyExpected = new LinkedList<>();
             List<String> storyActual = new LinkedList<>();
+            // remember if one of the sentences separated by "or" was successful
             boolean foundGood = false;
+            // in each then iterate over the sentences separated by "or"
             for(String thenPart : orSeparated){
                 try{
                     searchAndInvoke(testObj, thenPart, annotationType.THEN);
@@ -193,6 +198,9 @@ public class StoryTesterImpl implements StoryTester {
         return new Tuple3<Integer, StoryTestExceptionImpl, Object>(numFails,testException,testObj);
     }
 
+    /**
+     * Store a group of lines [when,...,when,then,...,then]
+     */
     static public class WhenThenStruct {
         List<String> whens;
         List<String> thens;
@@ -203,6 +211,11 @@ public class StoryTesterImpl implements StoryTester {
         }
     }
 
+    /**
+     * Convert a story string to:
+     * 1. Given sentence
+     * 2. Groups of lines starting with [When,...,When,Then,...,Then]
+     */
     static public class StoryStruct{
         String givenSentence;
         List<WhenThenStruct> whenThenGroups;

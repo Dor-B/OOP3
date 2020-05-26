@@ -4,9 +4,15 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class AnnotaionsHelper {
+    /**
+     * string "x1 x2 ... xn-1 xn" => "x1 x2 ... xn-1"
+     */
     static private String getFirstWords(String str){
         return str.substring(0, str.lastIndexOf(" "));
     }
+    /**
+     * string "x1 x2 ... xn-1 xn" => "xn"
+     */
     static private String getLastWord(String str){
         return str.substring(str.lastIndexOf(" ") + 1);
     }
