@@ -59,21 +59,33 @@ public class StoryTesterImpl implements StoryTester {
         }
 
     }
+
+    /**
+     * Copy an object - try clone, than copy c'tor, then assignment
+     * @param testObj the object to copy
+     * @return new copied object
+     * @throws IllegalAccessException
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     */
     public Object copyTestObject(Object testObj) throws IllegalAccessException, NoSuchMethodException, InvocationTargetException{
         Object backup = getInstance(testObj.getClass());
 
         for(Field field : testObj.getClass().getDeclaredFields()){
             field.setAccessible(true);
             Object fieldVal = field.get(testObj);
+            // try clone()
             if(fieldVal instanceof Cloneable){
                 Method cloneMethod = fieldVal.getClass().getMethod("clone");
                 cloneMethod.setAccessible(true);
                 field.set(backup, cloneMethod.invoke(fieldVal));
             }else{
+                // try copy c'tor
                 try{
                     Constructor<?> copyConstructor = fieldVal.getClass().getDeclaredConstructor(fieldVal.getClass());
                     copyConstructor.setAccessible(true);
                     field.set(backup, copyConstructor.newInstance(fieldVal));
+                // if none above worked use assignment
                 }catch (Exception exp){
                     field.set(backup, fieldVal);
                 }
@@ -81,6 +93,10 @@ public class StoryTesterImpl implements StoryTester {
         }
         return backup;
     }
+
+    /**
+     * Convert String list to array of Integer (where possible) and String
+     */
     public static Object[] stringParamsToGeneral(List<String> params){
         return params.stream()
                 .map(p -> (Object) p)
@@ -88,6 +104,14 @@ public class StoryTesterImpl implements StoryTester {
                 .map(o -> ((String) o).matches("-?\\d+") ?
                         Integer.parseInt((String) o) : o).toArray();
     }
+
+    /**
+     * Search and invoke a story line in the test's object class. When searching it's going up in the inheritance tree
+     * @param testObj the test object
+     * @param lineWithoutBeginning the story line without the prefix "GIVEN"\"THEN"\"WHEN"
+     * @param annoType type of story line GIVEN\THEN\WHEN
+     * @throws WordNotFoundException if line is not found in the test's object class or in upper class
+     */
     public void searchAndInvoke(Object testObj, String lineWithoutBeginning, annotationType annoType) throws WordNotFoundException {
         Tuple<Method, List<String>> methodData = searchAnnotation(testObj.getClass(), lineWithoutBeginning, annoType);
         if(methodData == null){
@@ -113,6 +137,18 @@ public class StoryTesterImpl implements StoryTester {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Run one group of [then,...,then,when,...,when] lines on a test object
+     * @param testObj the test object of the according test class
+     * @param whenThenStruct the WhenThenStruct that holds then and when lines
+     * @param noErrorsSoFar set this to true to make the function return the first "Then" fail for future use
+     * @return a Tuple3 of:
+     *              .first [Integer] = how many "Then" fails were in this when-then group
+     *              .second [StoryTestExceptionImpl] = the exception returned by the first "Then" fail (if noErrorsSoFar is true)
+     *              .third [Object] = the updated testObj (relevant if backup happened and changed it
+     * @throws WordNotFoundException if one of the story lines were not found
+     */
     public Tuple3<Integer, StoryTestExceptionImpl, Object> testWhenThenOnObject(Object testObj, WhenThenStruct whenThenStruct, boolean noErrorsSoFar) throws WordNotFoundException {
         Object backup;
         try{
