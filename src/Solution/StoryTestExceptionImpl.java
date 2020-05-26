@@ -1,4 +1,6 @@
-package Provided;
+package Solution;
+
+import Provided.StoryTestException;
 
 import java.util.List;
 
