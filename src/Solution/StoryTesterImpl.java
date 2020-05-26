@@ -2,10 +2,7 @@ package Solution;
 
 import Provided.*;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -25,9 +22,7 @@ public class StoryTesterImpl implements StoryTester {
             throw new IllegalArgumentException();
         }
         StoryStruct currStoryStruct = new StoryStruct(story);
-        Constructor<?>[] ctors = testClass.getConstructors();
-        ctors[0].setAccessible(true);
-        Object instance = ctors[0].newInstance();
+        Object instance = getInstance(testClass);
         String line = AnnotaionsHelper.removeFirstWord(currStoryStruct.givenSentence);
         searchAndInvoke(instance,line,annotationType.GIVEN);
         boolean noFailsSoFar = true;
@@ -64,9 +59,7 @@ public class StoryTesterImpl implements StoryTester {
 
     }
     public Object copyTestObject(Object testObj) throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException{
-        Constructor<?> backupCtor = testObj.getClass().getDeclaredConstructor();
-        backupCtor.setAccessible(true);
-        Object backup = backupCtor.newInstance();
+        Object backup = getInstance(testObj.getClass());
 
         for(Field field : testObj.getClass().getFields()){
             field.setAccessible(true);
@@ -249,6 +242,25 @@ public class StoryTesterImpl implements StoryTester {
             }
         }
         return searchAnnotation(testClass.getSuperclass(),givenString,type);
+    }
+
+    public Object getInstance(Class<?> clazz){
+        Object instance=null;
+        Constructor<?> ctor= null;
+        try {
+            if (clazz.isMemberClass() && !Modifier.isStatic(clazz.getModifiers())) {
+                ctor = clazz.getDeclaredConstructor(clazz.getDeclaringClass());
+                ctor.setAccessible(true);
+                instance = ctor.newInstance(getInstance(clazz.getDeclaringClass()));
+            } else {
+                ctor = clazz.getDeclaredConstructor();
+                ctor.setAccessible(true);
+                instance = ctor.newInstance();
+            }
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        return instance;
     }
 
     static public class Tuple<X, Y> {
