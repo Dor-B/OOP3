@@ -139,7 +139,7 @@ public class StoryTesterImpl implements StoryTester {
                 throw (ComparisonFailure) ite.getCause();
             }
         }catch (Exception e){ // should not be here
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 
@@ -159,7 +159,7 @@ public class StoryTesterImpl implements StoryTester {
         try{
             backup = copyTestObject(testObj);
         }catch (Exception e){ // should not be here
-            e.printStackTrace();
+            //e.printStackTrace();
             return new Tuple3<Integer,StoryTestExceptionImpl,Object>(0,null,null);
         }
         // iterate over the whens
@@ -324,7 +324,7 @@ public class StoryTesterImpl implements StoryTester {
                 instance = ctor.newInstance();
             }
         } catch(Exception e){//should not get here
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         return instance;
     }
